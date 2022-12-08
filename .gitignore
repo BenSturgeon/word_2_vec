@@ -23,6 +23,7 @@ wheels/
 pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
+.ipynb_checkpoints
 .installed.cfg
 *.egg
 MANIFEST
@@ -105,7 +106,7 @@ celerybeat.pid
 .env
 .venv
 env/
-venv/
+venv_wordvec/
 ENV/
 env.bak/
 venv.bak/
