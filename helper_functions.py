@@ -33,15 +33,6 @@ def remove_stopwords(data):
     data = [word for word in data if word not in stopwords]
     return data
 
-# %%
-data = remove_non_alpha_characters(raw_data)
-data = data.split(" ")
-data = remove_stopwords(data)
-unique_words = return_unique(data)
-
-# %%
-unique_dict = {word: i for i, word in enumerate(unique_words)}
-
 def one_hot_encode(words):
     length = len(words.keys())
     encoded_words = {}
@@ -53,24 +44,68 @@ def one_hot_encode(words):
 
     return encoded_words
 
-encoded_data = one_hot_encode(unique_dict)
+def non_scalar_loss(score, neg_score, lr, weight_decay):
+    pos_loss = -torch.mean(torch.log(score))
+    neg_loss = -torch.mean(torch.sum(torch.log(1 - neg_score), dim=1))
+    loss = pos_loss + neg_loss
+    # add L2 regularization term
+    l2_loss = 0
+    for param in model.parameters():
+        l2_loss += torch.sum(param**2)
+        loss += weight_decay * l2_loss
+    return loss
+
+
+# Testing helpers:
+def subtract_vector(vector1,vector2):
+    return get_emb(vector1) - get_emb(vector2)
+
+def add_vector(vector1,vector2):
+    return get_emb(vector1) + get_emb(vector2)
+
+def cos_sim(vector1, vector2):
+    return np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
+
+def cos_sim_word(word1, word2):
+    vector1 = get_emb(word1)
+    vector2 = get_emb(word2)
+    return np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
+
+def get_emb(word):
+    return model.get_embedding_from_word(word)
+
+def invert_dictionary(dictionary):
+    return {v: k for k, v in dictionary.items()}
+
+def get_closest_vector(vector):
+    max = 0
+    target = None
+    for key,item in unique_dict.items():
+        comparative = get_emb(key)
+        comparison = cos_sim(vector, comparative)
+        if comparison > max:
+            max = comparison
+            target = key
+
+        
+    return target
+
 
 # %%
-def return_list_without_a_value(data, value):
-    return [x for x in data if x != value]
+data = remove_non_alpha_characters(raw_data)
+data = data.split(" ")
+data = remove_stopwords(data)
+unique_words = return_unique(data)
 
+# %%
+unique_dict = {word: i for i, word in enumerate(unique_words)}
+
+encoded_data = one_hot_encode(unique_dict)
 
 window_size = 5
 dataset = []
 sample_data = data
 
-for i, val in enumerate(sample_data):
-    if i > len(sample_data) - window_size:
-        break
-    sub = sample_data[i:i+window_size]
-    included = return_list_without_a_value(sub, val)
-    for target in included:
-        dataset.append((unique_dict[val],unique_dict[target]))    
 
 # %%
 batch_size = 100
@@ -151,16 +186,7 @@ class SkipGramModel(nn.Module):
             embedding[word2id[tokens[0]]] = list(map(float, tokens[1:]))
         return embedding, word2id
 
-def non_scalar_loss(score, neg_score, lr, weight_decay):
-    pos_loss = -torch.mean(torch.log(score))
-    neg_loss = -torch.mean(torch.sum(torch.log(1 - neg_score), dim=1))
-    loss = pos_loss + neg_loss
-    # add L2 regularization term
-    l2_loss = 0
-    for param in model.parameters():
-        l2_loss += torch.sum(param**2)
-        loss += weight_decay * l2_loss
-    return loss
+
   
 embedding_dim = 100
 window_size = 5
@@ -221,38 +247,6 @@ for epoch in range(epochs):
 
 
 # %%
-def subtract_vector(vector1,vector2):
-    return get_emb(vector1) - get_emb(vector2)
-
-def add_vector(vector1,vector2):
-    return get_emb(vector1) + get_emb(vector2)
-
-def cos_sim(vector1, vector2):
-    return np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
-
-def cos_sim_word(word1, word2):
-    vector1 = get_emb(word1)
-    vector2 = get_emb(word2)
-    return np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
-
-def get_emb(word):
-    return model.get_embedding_from_word(word)
-
-def invert_dictionary(dictionary):
-    return {v: k for k, v in dictionary.items()}
-
-def get_closest_vector(vector):
-    max = 0
-    target = None
-    for key,item in unique_dict.items():
-        comparative = get_emb(key)
-        comparison = cos_sim(vector, comparative)
-        if comparison > max:
-            max = comparison
-            target = key
-
-        
-    return target
 
 
 # %%
