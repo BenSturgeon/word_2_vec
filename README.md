@@ -20,8 +20,7 @@ Any feedback, comments or questions are welcome at bwm.sturgeon@gmail.com
 
 
 ![embeddings](embeddings.png)
-# 
-Sources:
+#  Sources:
 
 https://towardsdatascience.com/creating-word-embeddings-coding-the-word2vec-algorithm-in-python-using-deep-learning-b337d0ba17a8
 
