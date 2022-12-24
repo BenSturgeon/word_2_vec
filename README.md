@@ -18,6 +18,8 @@ This was intended to primarily be a learning experiment and potentially a teachi
 
 Any feedback, comments or questions are welcome at bwm.sturgeon@gmail.com
 
+
+![embeddings](embeddings.png)
 # 
 Sources:
 
