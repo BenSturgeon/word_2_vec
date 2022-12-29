@@ -7,7 +7,7 @@ I also got to practice working more with the pytorch library as a result, which 
 
 The biggest challenge for me in building this was getting the vector dimensions right for matrix multiplication. Learning to respect that process and approach it slowly was valuable.
 
-
+The original repo can be found at https://github.com/BenSturgeon/word_2_vec
 
 
 ```python
@@ -55,7 +55,7 @@ def remove_stopwords(data):
 
 
 ```python
-raw_data = read_file('shakespeare.txt')
+raw_data = read_file('data/shakespeare.txt')
 
 data = remove_non_alpha_characters(raw_data)
 data = data.split(" ")
@@ -133,28 +133,29 @@ class SkipGramModel(nn.Module):
         self.v_embeddings.weight.data.normal_(init_mean, init_std)
 
     def forward(self, pos_u, pos_v, neg_v):
-        emb_u = self.u_embeddings(pos_u).view(-1, 1, self.embedding_dim).squeeze()
-        emb_v = self.v_embeddings(pos_v).view(-1, self.embedding_dim).squeeze()
 
-        score = torch.bmm(emb_u.unsqueeze(1), emb_v.unsqueeze(2)).squeeze()
+        emb_u = self.u_embeddings(pos_u)
+        emb_v = self.v_embeddings(pos_v)
+
+        neg_emb_v = self.v_embeddings(neg_v)
+
+        score = torch.einsum("ij,ij->i", emb_u, emb_v)
         score = torch.sigmoid(score)
 
-        neg_emb_v = self.v_embeddings(neg_v).view(-1, self.embedding_dim, neg_v.shape[1])
-
-        neg_score = torch.bmm(emb_u.unsqueeze(1), neg_emb_v).squeeze()
+        neg_score = torch.einsum("ij,ikj->ik", emb_u, neg_emb_v)
         neg_score = torch.sigmoid(neg_score)
 
         return score, neg_score
 
 
-    
     def forward_without_negatives(self, word1, word2):
         """This lets us do a simple vector comparison rather than doing a full forward pass."""""
         pos_u = torch.tensor([unique_dict[word1]])
         pos_v = torch.tensor([unique_dict[word2]])
-        emb_u = self.u_embeddings(pos_u).view(-1, 1, self.embedding_dim).squeeze()
-        emb_v = self.v_embeddings(pos_v).view(-1, self.embedding_dim).squeeze()
-        score = torch.dot(emb_u, emb_v)
+        emb_u = self.u_embeddings(pos_u)
+        emb_v = self.v_embeddings(pos_v)
+
+        score = torch.einsum("ij,ij->i", emb_u, emb_v)
         score = torch.sigmoid(score)
         return score
 
@@ -176,9 +177,6 @@ class SkipGramModel(nn.Module):
     def import_embeddings(self, file_name):
         with open(file_name, 'rb') as f:
             self.u_embeddings.weight.data = torch.from_numpy(pkl.load(f)).to(torch.float32)
-
-
-
 ```
 
 ### Loss function
@@ -215,7 +213,7 @@ The length of negative samples should be somewhere between 5 and 20. Having a lo
 
 
 ```python
-def train(model, train_loader, batch_size, negative_sample_length, weight_decay, learning_rate, steps_per_epoch, epochs):
+def train(model, train_loader, batch_size, negative_sample_length, weight_decay, learning_rate, steps_per_epoch, epochs, dictionary_length):
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     for epoch in range(epochs):
         loss_sum = 0
@@ -250,6 +248,7 @@ I instantiate this in a different step than running the training loop as I don't
 ```python
 embedding_dim = 100
 dictionary_length = len(unique_words)
+
 model = SkipGramModel(dictionary_length, embedding_dim)
 ```
 
@@ -280,204 +279,9 @@ train_loader = torch.utils.data.DataLoader(dataset=dataset,
                                            batch_size=batch_size, 
                                            shuffle=True)
 
-train(model, train_loader, batch_size, negative_sample_length, weight_decay, learning_rate, steps_per_epoch, epochs)
+train(model, train_loader, batch_size, negative_sample_length, weight_decay, learning_rate, steps_per_epoch, epochs, dictionary_length)
+
 ```
-
-      0%|          | 0/300 [00:00<?, ?it/s]/var/folders/xr/3pxy4p9914ld14l6mxvvknvw0000gn/T/ipykernel_564/3371504634.py:8: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
-      pos_u = torch.tensor(x)
-    /var/folders/xr/3pxy4p9914ld14l6mxvvknvw0000gn/T/ipykernel_564/3371504634.py:9: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
-      pos_v = torch.tensor(y)
-    100%|██████████| 300/300 [00:04<00:00, 61.86it/s]
-
-
-    Epoch: 0, Loss: 15.062570985158285
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.54it/s]
-
-
-    Epoch: 1, Loss: 11.149217160542806
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.61it/s]
-
-
-    Epoch: 2, Loss: 11.097777713139852
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.92it/s]
-
-
-    Epoch: 3, Loss: 11.101737922032674
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.99it/s]
-
-
-    Epoch: 4, Loss: 11.10995981534322
-
-
-    100%|██████████| 300/300 [00:04<00:00, 64.15it/s]
-
-
-    Epoch: 5, Loss: 11.11240519841512
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.58it/s]
-
-
-    Epoch: 6, Loss: 11.088037172953287
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.70it/s]
-
-
-    Epoch: 7, Loss: 11.074867312113444
-
-
-    100%|██████████| 300/300 [00:04<00:00, 64.97it/s]
-
-
-    Epoch: 8, Loss: 11.039957389831542
-
-
-    100%|██████████| 300/300 [00:04<00:00, 64.10it/s]
-
-
-    Epoch: 9, Loss: 11.04225684483846
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.87it/s]
-
-
-    Epoch: 10, Loss: 11.003310381571453
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.87it/s]
-
-
-    Epoch: 11, Loss: 10.992491547266642
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.78it/s]
-
-
-    Epoch: 12, Loss: 10.9765771484375
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.95it/s]
-
-
-    Epoch: 13, Loss: 10.986021887461344
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.78it/s]
-
-
-    Epoch: 14, Loss: 10.978231426874796
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.90it/s]
-
-
-    Epoch: 15, Loss: 10.97792008082072
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.82it/s]
-
-
-    Epoch: 16, Loss: 10.953595498402914
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.30it/s]
-
-
-    Epoch: 17, Loss: 10.96350152015686
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.92it/s]
-
-
-    Epoch: 18, Loss: 10.95886812210083
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.85it/s]
-
-
-    Epoch: 19, Loss: 10.948883460362753
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.46it/s]
-
-
-    Epoch: 20, Loss: 10.942999130884806
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.47it/s]
-
-
-    Epoch: 21, Loss: 10.938583574295045
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.44it/s]
-
-
-    Epoch: 22, Loss: 10.956660776138305
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.25it/s]
-
-
-    Epoch: 23, Loss: 10.945172157287598
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.21it/s]
-
-
-    Epoch: 24, Loss: 10.945524829228718
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.38it/s]
-
-
-    Epoch: 25, Loss: 10.948882131576537
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.34it/s]
-
-
-    Epoch: 26, Loss: 10.936189915339153
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.39it/s]
-
-
-    Epoch: 27, Loss: 10.929907401402792
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.18it/s]
-
-
-    Epoch: 28, Loss: 10.945582799911499
-
-
-    100%|██████████| 300/300 [00:04<00:00, 63.31it/s]
-
-    Epoch: 29, Loss: 10.946145582199097
-
-
-    
-
-
-
-
-
-    SkipGramModel(
-      (u_embeddings): Embedding(30997, 100, sparse=True)
-      (v_embeddings): Embedding(30997, 100, sparse=True)
-    )
-
-
 
 # Testing
 We now go to the testing phase to see how our model is performing.
@@ -549,22 +353,22 @@ print(cos_sim_word("child", "thought"), ("child", "thought"))
 
 ```
 
-    0.3508667 ('flower', 'rose')
-    0.09888135 ('flower', 'tree')
-    0.3795862 ('flower', 'dog')
-    0.03061111 ('flower', 'metal')
-    -inf ('flower', 'cart')
-    0.1650378 ('worm', 'dog')
-    0.9708709 ('king', 'queen')
-    0.15380333 ('king', 'royalty')
-    0.17624536 ('queen', 'royalty')
-    0.99405634 ('man', 'king')
-    0.97293115 ('woman', 'king')
-    0.94517046 ('child', 'prince')
-    0.91396743 ('child', 'thought')
+    0.31146833 ('flower', 'rose')
+    0.3206159 ('flower', 'tree')
+    0.6835493 ('flower', 'dog')
+    nan ('flower', 'metal')
+    nan ('flower', 'cart')
+    0.67522717 ('worm', 'dog')
+    0.9980375 ('king', 'queen')
+    -0.22151712 ('king', 'royalty')
+    -0.20813023 ('queen', 'royalty')
+    0.99990135 ('man', 'king')
+    0.9579921 ('woman', 'king')
+    0.9976936 ('child', 'prince')
+    0.9977772 ('child', 'thought')
 
 
-    /var/folders/xr/3pxy4p9914ld14l6mxvvknvw0000gn/T/ipykernel_564/221498206.py:7: RuntimeWarning: divide by zero encountered in float_scalars
+    /var/folders/xr/3pxy4p9914ld14l6mxvvknvw0000gn/T/ipykernel_36271/221498206.py:8: RuntimeWarning: invalid value encountered in float_scalars
       return np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
 
 
@@ -577,11 +381,11 @@ closest_vector = get_closest_vector(vector)
 print(closest_vector)
 ```
 
-    /var/folders/xr/3pxy4p9914ld14l6mxvvknvw0000gn/T/ipykernel_564/221498206.py:2: RuntimeWarning: divide by zero encountered in float_scalars
+    /var/folders/xr/3pxy4p9914ld14l6mxvvknvw0000gn/T/ipykernel_36271/221498206.py:3: RuntimeWarning: divide by zero encountered in float_scalars
       return np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
 
 
-    waspish
+    growing
 
 
 Here we have the option to generate some common words. Currently I prefer using a small hand picked set
@@ -607,7 +411,7 @@ Save the embeddings using any filename you like
 
 
 ```python
-path = "embeddings.emb"
+path = "outputs/embeddings.emb"
 model.save_embedding(path)
 ```
 
@@ -615,7 +419,7 @@ Import the embeddings if you simply wish to display them without training
 
 
 ```python
-model.import_embeddings("embeddings.emb")
+model.import_embeddings("outputs/embeddings.emb")
 ```
 
 Here we choose some possibly interesting words to look at in our dataset, based on my poor knowledge of Shakespeare
@@ -660,7 +464,7 @@ for word in words:
   plt.scatter(coord[0], coord[1])
   plt.annotate(word, (coord[0], coord[1]))
 
-plt.savefig('embeddings.png')
+plt.savefig('outputs/embeddings.png')
 
 ```
 
@@ -709,10 +513,6 @@ words = ["king","queen"]
 plot_embeddings(words, 5, reduced_embeddings)
 
 ```
-
-
-<table><tr><td>king</td><td>1.01</td><td>-0.01</td></tr><tr><td>queen</td><td>0.22</td><td>-0.03</td></tr></table>
-
 
 ## Conclusion
 

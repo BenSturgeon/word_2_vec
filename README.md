@@ -25,3 +25,5 @@ Any feedback, comments or questions are welcome at bwm.sturgeon@gmail.com
 https://towardsdatascience.com/creating-word-embeddings-coding-the-word2vec-algorithm-in-python-using-deep-learning-b337d0ba17a8
 
 https://www.deeplearningwizard.com/deep_learning/practical_pytorch/pytorch_logistic_regression/#step-3-building-model
+
+https://towardsdatascience.com/the-word2vec-hyperparameters-e7b3be0d0c74
